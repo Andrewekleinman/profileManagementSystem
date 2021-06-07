@@ -1,19 +1,20 @@
 package com.example
 
 //#user-registry-actor
-import akka.actor.ActorContext
-import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.scaladsl._
 import com.example.UserRegistry.Response.{ActionPerformed, GetUserResponse}
 //import com.example.UserRegistry.element
+import akka.actor.typed.{ActorRef, ActorSystem}
 
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 
 //#user-case-classes
 final case class User(username: String, password: String, firstname: String, lastname: String, email: String)
 final case class Users(string: Seq[String])
+
 final case class Log(username: String, password: String)
+
 //#user-case-classes
 
 object UserRegistry {
@@ -45,32 +46,32 @@ object UserRegistry {
         case Command.CreateUser(user, replyTo) =>
           if (!users.contains(user.username)) {
 
-           // val newUser = context.spawn(element(),user.username)
-//            users.addOne(user.username, newUser)
-//            newUser ! user
+            val newUser = context.spawn(element(),user.username)
+            users.addOne(user.username, newUser)
+            newUser ! user
           }
           replyTo ! ActionPerformed(s"User ${user.username} created.")
           mainBehavior(users)
         case Command.DeleteUser(username:String, replyTo) =>
           replyTo ! ActionPerformed(s"User $username deleted.")
           if(users.contains(username)){
-            //database operation to delete
+            users(username) ! username
             context.stop(users(username))
             users.remove(username)
           }
           mainBehavior(users)
         case Command.LogIn(logging: Log, replyTo) =>
           if (users.contains(logging.username)) {
-            //database operation to check for password match
+            users(logging.username) ! logging
             replyTo ! ActionPerformed("login confirmed")
           }
-          else replyTo !ActionPerformed("incorrect username")
+          else replyTo ! ActionPerformed("incorrect username")
           Behaviors.same
         case Command.UpdateUser(user,replyTo) =>
           if(users.contains(user.username)) {
-            users(user.username) ! user
             context.stop(users(user.username))
-            //users(user.username) = context.spawn(element(),user.username)
+            users(user.username) = context.spawn(element(),user.username)
+            users(user.username) ! user
             replyTo ! ActionPerformed(s"User ${user.username} updated.")
           }
           replyTo ! ActionPerformed("that user does not exist")
@@ -80,25 +81,22 @@ object UserRegistry {
 
 }
 object element{
-  def apply(): Behavior[String] = {
-    Behaviors.setup(context => new element(context))
-  }
-}
-class element(context: ActorContext[String]) extends AbstractBehavior[String](context) {
-  override def onMessage(msg: String): Behavior[String] = {
-    val arr = msg.split(" ");
-    arr(0) match {
-      case "create" =>
-      //db operation add element
-      case "update" =>
-      //db operation update element
-      case "delete" =>
-      //db operation remove element if username and password match
-      case "login" =>
-      //db operation query password for username, compare
-      //if it doesn't match, print "incorrect password"
+  def apply(): Behavior[Any] = {
+    Behaviors.receive { (context, msg) =>
+      msg match {
+        case msg.getClass == User => {
+          //db operation to change change the user
+        }
+        case msg.getClass == Log => {
+          if (true /*db operation to confirm password*/ )
+            context.log.info("logged in")
+          else context.log.info("incorrect username or password")
+        }
+        case msg.getClass == String =>
+        //db operation to remove element who's ID was passed
+      }
+      Behaviors.same
     }
-    this
+
   }
 }
-

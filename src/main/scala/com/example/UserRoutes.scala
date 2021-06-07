@@ -61,7 +61,7 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
             },
             patch {
               entity(as[Log]) { log =>
-                onSuccess(logIn(log)){performed =>
+                onSuccess(logIn(log)) { performed =>
                   complete(StatusCodes.OK)
                 }
               }
