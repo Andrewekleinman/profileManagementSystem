@@ -23,12 +23,12 @@ object UserActor {
             Behaviors.same
 
           case Command.LogIn(logging: Log, replyTo) =>
-            var temp = false //db operation to check for matching password and username
+            val temp = false //db operation to check for matching password and username
             if (temp)
               replyTo ! ActionPerformed(s"${logging.username} signed in")
             else replyTo ! ActionPerformed("incorrect password")
             Behaviors.same
-            
+
           case Command.UpdateUser(user, replyTo) =>
             //db operation to set user variables
             replyTo ! ActionPerformed(s"User ${user.username} updated")
