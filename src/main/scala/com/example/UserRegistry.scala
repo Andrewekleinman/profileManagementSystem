@@ -44,37 +44,39 @@ object UserRegistry {
         case Command.GetUsers(replyTo) =>
           replyTo ! Users(users.keys.toSeq)
           Behaviors.same
+
         case Command.CreateUser(user, replyTo) =>
           if (!users.contains(user.username)) {
             val newUser = context.spawn(UserActor.element(),user.username)
             users.addOne((user.username, newUser))
             newUser ! message
           }
-          replyTo ! ActionPerformed(s"User ${user.username} created.")
+          else replyTo ! ActionPerformed(s"User ${user.username} already exists.")
           mainBehavior(users)
+
         case Command.DeleteUser(username:String, replyTo) =>
-          replyTo ! ActionPerformed(s"User $username deleted.")
           if(users.contains(username)){
             users(username) ! message
             context.stop(users(username))
             users.remove(username)
           }
+          else replyTo ! ActionPerformed(s"User ${username} does not exist.")
           mainBehavior(users)
+
         case Command.LogIn(logging: Log, replyTo) =>
           if (users.contains(logging.username)) {
             users(logging.username) ! message
-            replyTo ! ActionPerformed("login confirmed")
           }
           else replyTo ! ActionPerformed("incorrect username")
           Behaviors.same
+
         case Command.UpdateUser(user,replyTo) =>
           if(users.contains(user.username)) {
             context.stop(users(user.username))
             users(user.username) = context.spawn(UserActor.element(),user.username)
             users(user.username) ! message
-            replyTo ! ActionPerformed(s"User ${user.username} updated.")
           }
-          replyTo ! ActionPerformed("that user does not exist")
+          else replyTo ! ActionPerformed(s"User ${user.username} does not exist")
           mainBehavior(users)
       }
     }
