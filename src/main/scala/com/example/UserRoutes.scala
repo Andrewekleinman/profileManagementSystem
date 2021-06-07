@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import com.example.UserRegistry._
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
@@ -23,19 +23,15 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
 
   // If ask takes more time than this to complete the request is failed
   private implicit val timeout = Timeout.create(system.settings.config.getDuration("my-app.routes.ask-timeout"))
+  private implicit val ec: ExecutionContextExecutor = system.executionContext
 
-  def getUsers(): Future[Users] =
-    userRegistry.ask(GetUsers)
-  def getUser(name: String): Future[GetUserResponse] =
-    userRegistry.ask(GetUser(name, _))
-  def createUser(user: User): Future[ActionPerformed] =
-    userRegistry.ask(CreateUser(user, _))
-  def deleteUser(name: String): Future[ActionPerformed] =
-    userRegistry.ask(DeleteUser(name, _))
-  def updateUser(user: User): Future[ActionPerformed] =
-    userRegistry.ask(UpdateUser(user, _))
-  def logIn(username: String,password: String): Future[ActionPerformed] =
-  userRegistry.ask(LogIn(username,password, _))
+
+  def getUsers(): Future[Users] = userRegistry.ask(Command.GetUsers)
+  def getUser(name: String): Future[Response.GetUserResponse] = userRegistry.ask(Command.GetUser(name, _))
+  def createUser(user: User): Future[Response.ActionPerformed] = userRegistry.ask(Command.CreateUser(user, _))
+  def deleteUser(name: String): Future[Response.ActionPerformed] = userRegistry.ask(Command.DeleteUser(name, _))
+  def updateUser(user: User): Future[Response.ActionPerformed] = userRegistry.ask(Command.UpdateUser(user, _))
+  def logIn(logging: Log): Future[Response.ActionPerformed] = userRegistry.ask(Command.LogIn(logging, _))
 
   //#all-routes
   //#users-get-post
@@ -52,48 +48,47 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
             post {
               entity(as[User]) { user =>
                 onSuccess(createUser(user)) { performed =>
-                  complete((StatusCodes.Created, performed))
+                  complete(StatusCodes.OK)
                 }
               }
             },
             put {
               entity(as[User]) { user =>
                 onSuccess(updateUser(user)) { performed =>
-                  complete((StatusCodes.Created, performed))
+                  complete(StatusCodes.OK)
+                }
+              }
+            },
+            patch {
+              entity(as[Log]) { log =>
+                onSuccess(logIn(log)){performed =>
+                  complete(StatusCodes.OK)
                 }
               }
             }
               )
-            })
-        }
+            },
         //#users-get-delete
         //#users-get-post
         path(Segment) { name =>
           concat(
             get {
-              //#retrieve-user-info
-              onSuccess(getUser(name)){ performed =>
-                complete((StatusCodes.Created, performed))
-
+              onSuccess(getUser(name).map(_.maybeUser)) {
+                case Some(user) =>
+                  complete(user)
+                case None =>
+                  complete(StatusCodes.NoContent)
               }
-              //#retrieve-user-info
             },
             delete {
               //#users-delete-logic
               onSuccess(deleteUser(name)) { performed =>
-                complete((StatusCodes.Created,performed))
+                complete((StatusCodes.NoContent))
               }
               //#users-delete-logic
-            },
-              path(Segment){ password =>
-                concat(
-              patch {
-                onSuccess(logIn(name,password)){performed =>
-                  complete((StatusCodes.Created,performed))
-                }
-              })
             })
-        }
+        })
+    }
       //#users-get-delete
   //#all-routes
 }
