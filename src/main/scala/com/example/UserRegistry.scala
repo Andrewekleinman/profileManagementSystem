@@ -3,10 +3,11 @@ package com.example
 //#user-registry-actor
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl._
+import com.example.UserRegistry.Command
 import com.example.UserRegistry.Response.{ActionPerformed, GetUserResponse}
 //import com.example.UserRegistry.element
 import akka.actor.typed.{ActorRef, ActorSystem}
-
+import com.example.UserActor._
 import scala.collection.mutable
 
 //#user-case-classes
@@ -37,7 +38,7 @@ object UserRegistry {
   def apply(): Behavior[Command] = mainBehavior(mutable.HashMap.empty)
 
 
-  private def mainBehavior(users: mutable.HashMap[String, ActorRef[User]]): Behavior[Command] =
+  private def mainBehavior(users: mutable.HashMap[String, ActorRef[Command]]): Behavior[Command] =
     Behaviors.receive[Command] { (context, message) =>
       message match {
         case Command.GetUsers(replyTo) =>
@@ -45,24 +46,23 @@ object UserRegistry {
           Behaviors.same
         case Command.CreateUser(user, replyTo) =>
           if (!users.contains(user.username)) {
-
-            val newUser = context.spawn(element(),user.username)
-            users.addOne(user.username, newUser)
-            newUser ! user
+            val newUser = context.spawn(UserActor.element(),user.username)
+            users.addOne((user.username, newUser))
+            newUser ! message
           }
           replyTo ! ActionPerformed(s"User ${user.username} created.")
           mainBehavior(users)
         case Command.DeleteUser(username:String, replyTo) =>
           replyTo ! ActionPerformed(s"User $username deleted.")
           if(users.contains(username)){
-            users(username) ! username
+            users(username) ! message
             context.stop(users(username))
             users.remove(username)
           }
           mainBehavior(users)
         case Command.LogIn(logging: Log, replyTo) =>
           if (users.contains(logging.username)) {
-            users(logging.username) ! logging
+            users(logging.username) ! message
             replyTo ! ActionPerformed("login confirmed")
           }
           else replyTo ! ActionPerformed("incorrect username")
@@ -70,8 +70,8 @@ object UserRegistry {
         case Command.UpdateUser(user,replyTo) =>
           if(users.contains(user.username)) {
             context.stop(users(user.username))
-            users(user.username) = context.spawn(element(),user.username)
-            users(user.username) ! user
+            users(user.username) = context.spawn(UserActor.element(),user.username)
+            users(user.username) ! message
             replyTo ! ActionPerformed(s"User ${user.username} updated.")
           }
           replyTo ! ActionPerformed("that user does not exist")
@@ -80,23 +80,5 @@ object UserRegistry {
     }
 
 }
-object element{
-  def apply(): Behavior[Any] = {
-    Behaviors.receive { (context, msg) =>
-      msg match {
-        case msg.getClass == User => {
-          //db operation to change change the user
-        }
-        case msg.getClass == Log => {
-          if (true /*db operation to confirm password*/ )
-            context.log.info("logged in")
-          else context.log.info("incorrect username or password")
-        }
-        case msg.getClass == String =>
-        //db operation to remove element who's ID was passed
-      }
-      Behaviors.same
-    }
 
-  }
-}
+

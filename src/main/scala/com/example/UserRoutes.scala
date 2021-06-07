@@ -72,14 +72,6 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
         //#users-get-post
         path(Segment) { name =>
           concat(
-            get {
-              onSuccess(getUser(name).map(_.maybeUser)) {
-                case Some(user) =>
-                  complete(user)
-                case None =>
-                  complete(StatusCodes.NoContent)
-              }
-            },
             delete {
               //#users-delete-logic
               onSuccess(deleteUser(name)) { performed =>
