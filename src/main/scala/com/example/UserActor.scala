@@ -8,32 +8,32 @@ import com.example.UserRegistry.Response.ActionPerformed
 import com.example.UserRegistry._
 
 object UserActor {
-  object element{
+  object element {
     def apply(): Behavior[Command] = {
-      Behaviors.setup(context => new element(context))
-    }
-  }
-  class element(context: ActorContext[Command]) extends AbstractBehavior[Command](context) {
-    override def onMessage(message: Command): Behavior[Command] = {
-      message match {
-        case Command.CreateUser(user, replyTo) =>
-          //db operation to set user variables
-          replyTo ! ActionPerformed(s"User ${user.username} created.")
-          Behaviors.same
-        case Command.DeleteUser(username:String, replyTo) =>
-         //db operation to delete user with given username
-          replyTo ! ActionPerformed(s"User ${username} deleted.")
-          Behaviors.same
-        case Command.LogIn(logging: Log, replyTo) =>
-          var temp = false //db operation to check for matching password and username
-          if(temp)
-            replyTo ! ActionPerformed(s"${logging.username} signed in")
-          else replyTo ! ActionPerformed("incorrect password")
-          Behaviors.same
-        case Command.UpdateUser(user,replyTo) =>
-          //db operation to set user variables
-          replyTo ! ActionPerformed(s"User ${user.username} updated")
-          Behaviors.same
+      Behaviors.receive[Command] { (context, message) =>
+        message match {
+          case Command.CreateUser(user, replyTo) =>
+            //db operation to set user variables
+            replyTo ! ActionPerformed(s"User ${user.username} created.")
+            Behaviors.same
+
+          case Command.DeleteUser(username: String, replyTo) =>
+            //db operation to delete user with given username
+            replyTo ! ActionPerformed(s"User ${username} deleted.")
+            Behaviors.same
+
+          case Command.LogIn(logging: Log, replyTo) =>
+            var temp = false //db operation to check for matching password and username
+            if (temp)
+              replyTo ! ActionPerformed(s"${logging.username} signed in")
+            else replyTo ! ActionPerformed("incorrect password")
+            Behaviors.same
+            
+          case Command.UpdateUser(user, replyTo) =>
+            //db operation to set user variables
+            replyTo ! ActionPerformed(s"User ${user.username} updated")
+            Behaviors.same
+        }
       }
     }
   }
