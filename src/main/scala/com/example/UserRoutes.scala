@@ -1,24 +1,24 @@
 package com.example
-
+//curl -X POST http://127.0.0.1:8080/users -d '{"username": "a","password":"b","firstname": "c","lastname":"d","email":"e"}' -H "Content-Type:application/json"
+import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.http.javadsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{StatusCodes, headers}
+import akka.http.scaladsl.model.headers.{HttpOrigin, Origin, RawHeader}
 import akka.http.scaladsl.server.Directives.{path, _}
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.example.UserRegistry._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
-import com.example.UserRegistry._
-import akka.actor.typed.ActorRef
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.AskPattern._
-import akka.http.scaladsl.server.RouteResult.Complete
-import akka.util.Timeout
 
 //#import-json-formats
 //#user-routes-class
 class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val system: ActorSystem[_]) {
 
   //#user-routes-class
-  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import JsonFormats._
+  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   //#import-json-formats
 
   // If ask takes more time than this to complete the request is failed
@@ -43,26 +43,37 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
         pathEnd {
           concat(
             get {
-              complete(getUsers())
+              respondWithHeaders(headers.RawHeader("Access-Control-Allow-Origin", "*"),headers.RawHeader("Access-Control-Allow-Headers","content-type"),headers.RawHeader("Access-Control-Allow-Methods","*")){
+              complete(getUsers())}
+            },
+            options {
+              respondWithHeaders(headers.RawHeader("Access-Control-Allow-Origin", "*"),headers.RawHeader("Access-Control-Allow-Headers","content-type"),headers.RawHeader("Access-Control-Allow-Methods","*")){
+              complete(StatusCodes.OK)}
             },
             post {
-              entity(as[User]) { user =>
-                onSuccess(createUser(user)) { performed =>
-                  complete(StatusCodes.OK)
+              respondWithHeaders(headers.RawHeader("Access-Control-Allow-Origin", "*"),headers.RawHeader("Access-Control-Allow-Headers","content-type"),headers.RawHeader("Access-Control-Allow-Methods","*")){
+                entity(as[User]) { user =>
+                onComplete(createUser(user)) { performed =>
+                   complete(StatusCodes.OK)
+                  }
                 }
               }
             },
             put {
-              entity(as[User]) { user =>
-                onSuccess(updateUser(user)) { performed =>
-                  complete(StatusCodes.OK)
+              respondWithHeaders(headers.RawHeader("Access-Control-Allow-Origin", "*"),headers.RawHeader("Access-Control-Allow-Headers","content-type"),headers.RawHeader("Access-Control-Allow-Methods","*")){
+
+                entity(as[User]) { user =>
+                  onSuccess(updateUser(user)) { performed =>
+                  complete(StatusCodes.OK)}
                 }
               }
             },
             patch {
-              entity(as[Log]) { log =>
-                onSuccess(logIn(log)) { performed =>
-                  complete(StatusCodes.OK)
+              respondWithHeaders(headers.RawHeader("Access-Control-Allow-Origin", "*"),headers.RawHeader("Access-Control-Allow-Headers","content-type"),headers.RawHeader("Access-Control-Allow-Methods","*")){
+
+                entity(as[Log]) { log =>
+                  onSuccess(logIn(log)) { performed =>
+                  complete(StatusCodes.OK)}
                 }
               }
             }
@@ -73,11 +84,12 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
         path(Segment) { name =>
           concat(
             delete {
-              //#users-delete-logic
-              onSuccess(deleteUser(name)) { performed =>
-                complete((StatusCodes.NoContent))
-              }
-              //#users-delete-logic
+              respondWithHeaders(headers.RawHeader("Access-Control-Allow-Origin", "*"),headers.RawHeader("Access-Control-Allow-Headers","content-type"),headers.RawHeader("Access-Control-Allow-Methods","*")) {
+                //#users-delete-logic
+                onSuccess(deleteUser(name)) { performed =>
+                  complete((StatusCodes.NoContent))
+                }
+              }              //#users-delete-logic
             })
         })
     }
